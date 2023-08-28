@@ -41,7 +41,12 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model_dir)
 
-    model = AutoGPTQForCausalLM.from_pretrained(args.base_model_dir, BaseQuantizeConfig())
+    # max_memory = {0: "12GIB", 1: "12GIB", 2: "12GIB", 3: "12GIB"}
+    model = AutoGPTQForCausalLM.from_pretrained(
+        args.base_model_dir, 
+        BaseQuantizeConfig(),
+        # max_memory=max_memory
+        )
     model.to("cuda:0")
 
     task = LanguageModelingTask(

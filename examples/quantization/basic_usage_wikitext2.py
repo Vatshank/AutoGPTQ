@@ -6,8 +6,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-pretrained_model_dir = "facebook/opt-125m"
-quantized_model_dir = "opt-125m-4bit-128g"
+# pretrained_model_dir = "facebook/opt-125m"
+pretrained_model_dir = "meta-llama/Llama-2-7b-hf"
+# quantized_model_dir = "opt-125m-4bit-128g"
+quantized_model_dir = "Llama-2-7b-hf"
 
 # os.makedirs(quantized_model_dir, exist_ok=True)
 def get_wikitext2(nsamples, seed, seqlen, model):
@@ -17,8 +19,11 @@ def get_wikitext2(nsamples, seed, seqlen, model):
 
     from transformers import AutoTokenizer
     try:
+        print("Loading Tokenizer fast ...")
         tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
-    except:
+    except Exception as e:
+        print(e)
+        print("Loading Tokenizer slow ...")
         tokenizer = AutoTokenizer.from_pretrained(model, use_fast=True)
     trainenc = tokenizer("\n\n".join(traindata['text']), return_tensors='pt')
     testenc = tokenizer("\n\n".join(testdata['text']), return_tensors='pt')
@@ -28,6 +33,7 @@ def get_wikitext2(nsamples, seed, seqlen, model):
     np.random.seed(0)
     torch.random.manual_seed(0)
     
+    print("Creating traindataset ...")
     traindataset = []
     for _ in range(nsamples):
         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
@@ -131,7 +137,9 @@ def opt_eval(model, testenc, dev, seqlen = 2048):
     model.config.use_cache = use_cache
 
 def main():
+    print("Loading Tokenizer ...")
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_dir, use_fast=True)
+    print("Loading Dataset ...")
     traindataset,testenc = get_wikitext2(128, 0, 2048, pretrained_model_dir)
 
     quantize_config = BaseQuantizeConfig(
@@ -141,8 +149,9 @@ def main():
     )
 
     # load un-quantized model, the model will always be force loaded into cpu
+    print("Loading Model ...")
     model = AutoGPTQForCausalLM.from_pretrained(pretrained_model_dir, quantize_config)
-
+    print("Quantizing Model ...")
     # quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask" 
     # with value under torch.LongTensor type.
     model.quantize(traindataset, use_triton=False)
